@@ -1,8 +1,8 @@
 # Using a Stremio stream as an action button
 
-*Draft for LinkedIn or a blog. Source: github.com/rafaellopes/stremio-request-bridge*
+*Source code: github.com/rafaellopes/stremio-request-bridge*
 
-Stremio addons have no user interface. They can answer exactly one useful question: which streams exist for this title? I needed a button that says "request this title on my server", and the only place to put it was inside that answer.
+Stremio addons have no user interface. They answer one question: which streams exist for this title? I wanted a button that says "request this title on my server", and the only place to put it was inside that answer.
 
 So I made one of the streams not a video, but an action.
 
@@ -22,17 +22,17 @@ An action behind a GET is the interesting part, because everything that can call
 
 **Sonarr undoes your work if you are early.** To request a single season I add the series with `monitor: none` and then monitor only that season. Sonarr loads the episode list first and applies `monitor: none` afterwards, which silently wiped my flags, and the season search found nothing to search for. The fix is to wait for the episodes to appear, and a bit longer, before touching anything.
 
-**A permissive quality profile will happily pick a 33 GB release.** I let the first real request run with a profile that allowed any 1080p. It chose a release that would have taken weeks. The addon now uses whatever profile you configure, and the README tells you to give that profile a size limit.
+**A permissive quality profile will happily pick a 33 GB release.** My first real request ran with a profile that allowed any 1080p, and Radarr grabbed a 33 GB remux. I cancelled it and capped the size in the profile. The addon uses whatever profile you configure, and the README says to give that profile a size limit.
 
 ## Making it safe to publish
 
 My own version had my domain, my folders and my quality profile in the code, and a GET endpoint with no protection at all. Turning it into something other people can run meant three things.
 
-First, configuration: everything comes from environment variables, with sensible defaults taken from Radarr and Sonarr themselves. Second, security. Every route lives under a secret token in the path, compared in constant time, and a wrong token looks identical to an unknown page. There is a per-client and a global rate limit, strict id validation, and the addon can only add or monitor a title and start a search, nothing else. Third, tests: thirty of them, running the real HTTP server against small fake Radarr and Sonarr APIs, so the request flow is covered end to end in about two seconds, with no dependencies at all.
+First, configuration: everything comes from environment variables, with sensible defaults taken from Radarr and Sonarr themselves. Second, security. Every route lives under a secret token in the path, compared in constant time, and a wrong token looks identical to an unknown page. There is a per-client and a global rate limit, strict id validation, and the addon can only add or monitor a title and start a search, nothing else. Third, tests: thirty of them, running the real HTTP server against small fake Radarr and Sonarr APIs. They cover the request flow end to end in under two seconds, and the project has no dependencies.
 
-## What I would tell someone building on a constrained platform
+## The general lesson
 
-When a platform gives you one extension point, look at what the host does with your answer. Here the host plays a URL, so a URL can be an action. The cost is that you now own the problems of side effects behind a GET, and the honest thing is to design for them from the first commit instead of discovering them later.
+When a platform gives you one extension point, look at what the host does with your answer. Here the host plays a URL, so a URL can be an action. The price is that you now own the side effects behind a GET, and it is cheaper to design for them from the first commit than to find them one by one.
 
 The code is MIT licensed, runs from a single container, and is on GitHub: github.com/rafaellopes/stremio-request-bridge
 
