@@ -1,0 +1,9 @@
+services:
+  stremio-request-bridge:
+    image: ghcr.io/rafaellopes/stremio-request-bridge:latest
+    restart: unless-stopped
+    env_file: .env
+    # Publish on a private interface and put an HTTPS reverse proxy in front of it
+    # (Stremio on TVs and phones requires https). Do not expose this port to the internet unprotected.
+    ports:
+      - "127.0.0.1:7000:7000"

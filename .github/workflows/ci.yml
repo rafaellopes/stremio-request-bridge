@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node: [20, 22]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - run: npm test
+
+  docker:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build image and check it starts
+        run: |
+          docker build -t bridge-ci .
+          docker run -d --name bridge \
+            -e PUBLIC_URL=https://example.test -e ACCESS_TOKEN=ci-token-0123456789abcdef \
+            -e RADARR_URL=http://radarr.invalid:7878 -e RADARR_API_KEY=x \
+            -p 7000:7000 bridge-ci
+          for i in 1 2 3 4 5 6 7 8 9 10; do
+            curl -fs http://127.0.0.1:7000/healthz && exit 0
+            sleep 1
+          done
+          docker logs bridge
+          exit 1

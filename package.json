@@ -1,0 +1,28 @@
+{
+  "name": "stremio-request-bridge",
+  "version": "1.0.0",
+  "description": "Stremio addon that turns a stream entry into a request button for your Radarr/Sonarr, and shows download progress in the same list.",
+  "type": "module",
+  "main": "src/index.js",
+  "bin": {
+    "stremio-request-bridge": "src/index.js"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "node --test tests/*.test.js",
+    "gen-token": "node -e \"console.log(require('node:crypto').randomBytes(24).toString('base64url'))\"",
+    "notices": "sh scripts/make-notices.sh"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "stremio",
+    "stremio-addon",
+    "radarr",
+    "sonarr",
+    "self-hosted"
+  ],
+  "license": "MIT",
+  "author": "Rafael Lopes"
+}
