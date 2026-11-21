@@ -73,14 +73,16 @@ export function createBridge({ config, radarr, sonarr, now = Date.now, sleep = d
   const seasonKey = (imdb, season) => `season/${imdb}/${season}`;
   const deleteKey = (kind, imdb, season) => `delete/${kind === 'movie' ? movieKey(imdb) : seasonKey(imdb, season)}`;
 
-  // The two-step delete: first a "delete" entry, then (for a minute) a "confirm" entry that actually deletes.
+  // The two-step delete. Both entries are always listed: Stremio keeps the stream list it already fetched when the
+  // player closes, so a "confirm" entry that only appeared after the first step would never show up on screen.
+  // Safety does not depend on the list: the confirm URL only deletes within a minute of the first step.
   function deleteEntries(kind, imdb, season, actionUrl) {
     if (!config.allowDelete) return [];
     const isMovie = kind === 'movie';
-    if (isArmed(deleteKey(kind, imdb, season))) {
-      return [entry(t.confirmRemove, isMovie ? t.confirmRemoveMovie : t.confirmRemoveSeason(season), actionUrl(`confirm-${kind}`, imdb, season))];
-    }
-    return [entry(t.remove, isMovie ? t.removeMovie : t.removeSeason(season), actionUrl(`delete-${kind}`, imdb, season))];
+    return [
+      entry(t.remove, isMovie ? t.removeMovie : t.removeSeason(season), actionUrl(`delete-${kind}`, imdb, season)),
+      entry(t.confirmRemove, isMovie ? t.confirmRemoveMovie : t.confirmRemoveSeason(season), actionUrl(`confirm-${kind}`, imdb, season)),
+    ];
   }
 
   // ---- movies (Radarr) ----

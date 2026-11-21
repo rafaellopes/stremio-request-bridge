@@ -91,7 +91,7 @@ The request URL is a plain `GET`, because that is all a player can call. That me
 - Repeating the same request within 10 minutes does nothing (players often retry).
 - Requests are rate limited per client and globally.
 - Ids are validated before anything reaches Radarr/Sonarr.
-- Deleting is off by default (`ALLOW_DELETE`). When on, it takes two different URLs: the first only arms, and only the second one, offered for a minute afterwards, deletes. Probes never delete, and a repeat right after a delete is harmless.
+- Deleting is off by default (`ALLOW_DELETE`). When on, it takes two different URLs: the first only arms, and only the second one, which is listed next to it but only works for a minute after the first, deletes. Probes never delete, and a repeat right after a delete is harmless.
 - The container runs as a non-root user and holds the Radarr/Sonarr keys only in its environment.
 
 The addon needs no access to your media files, only to the Radarr/Sonarr API. Without `ALLOW_DELETE` it can only add, monitor and search.

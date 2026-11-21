@@ -26,15 +26,16 @@ test('a movie that has a file offers "delete", which only asks for confirmation'
   const h = await startHarness({ env: ON });
   try {
     withFile(h);
-    const [stream] = await h.streams('movie', 'tt2');
+    const [stream, confirm] = await h.streams('movie', 'tt2');
     assert.match(stream.name, /Delete from server/);
     assert.equal(stream.url, `https://addon.example.test/${TOKEN}/do/delete/movie/tt2`);
+    // Stremio does not refetch the list after the notice plays, so the confirm entry is there from the start.
+    assert.match(confirm.name, /Confirm delete/);
+    assert.equal(confirm.url, `https://addon.example.test/${TOKEN}/do/confirm-delete/movie/tt2`);
     const res = await h.get(`/${TOKEN}/do/delete/movie/tt2`);
     assert.equal(res.headers.get('content-type'), 'video/mp4');
     assert.equal(calls(h.radarr, 'DELETE', '/moviefile/9').length, 0, 'the first step deletes nothing');
-    const [confirm] = await h.streams('movie', 'tt2');
-    assert.match(confirm.name, /Confirm delete/);
-    assert.equal(confirm.url, `https://addon.example.test/${TOKEN}/do/confirm-delete/movie/tt2`);
+    assert.equal((await h.streams('movie', 'tt2')).length, 2, 'the list does not change after arming');
   } finally { await h.close(); }
 });
 
@@ -70,7 +71,9 @@ test('the first step expires after a minute', async () => {
     await h.get(`/${TOKEN}/do/confirm-delete/movie/tt2`);
     assert.equal(calls(h.radarr, 'DELETE', '/moviefile/9').length, 0);
     const [stream] = await h.streams('movie', 'tt2');
-    assert.match(stream.name, /Delete from server/, 'back to the first step');
+    assert.match(stream.name, /Delete from server/);
+    await h.get(`/${TOKEN}/do/confirm-delete/movie/tt2`);
+    assert.equal(calls(h.radarr, 'DELETE', '/moviefile/9').length, 0, 'still needs a fresh first step');
   } finally { await h.close(); }
 });
 

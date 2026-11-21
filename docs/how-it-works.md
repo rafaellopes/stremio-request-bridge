@@ -66,7 +66,7 @@ These each cost time while building it.
 
 ## Deleting from the stream list
 
-With `ALLOW_DELETE=true`, a title that already has its file gets a "Delete from server" entry. Selecting it only arms the delete (and plays a notice). For the next minute the title shows a "Confirm delete" entry on a different URL, and only that one removes the file (`DELETE /moviefile/{id}` in Radarr, `DELETE /episodefile/bulk` in Sonarr) and stops monitoring so the app does not fetch it again. Two URLs rather than one counted request, because players probe a URL more than once for a single selection.
+With `ALLOW_DELETE=true`, a title that already has its file gets a "Delete from server" entry. Selecting it only arms the delete (and plays a notice). A "Confirm delete" entry on a different URL is listed right below it from the start, because Stremio does not refetch the list when the player closes, and only that one, and only within a minute of the first step, removes the file (`DELETE /moviefile/{id}` in Radarr, `DELETE /episodefile/bulk` in Sonarr) and stops monitoring so the app does not fetch it again. Two URLs rather than one counted request, because players probe a URL more than once for a single selection.
 
 ## Security model
 
