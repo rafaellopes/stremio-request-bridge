@@ -21,4 +21,5 @@ export class Arr {
   get(path) { return this.call('GET', path); }
   post(path, body) { return this.call('POST', path, body); }
   put(path, body) { return this.call('PUT', path, body); }
+  delete(path, body) { return this.call('DELETE', path, body); }
 }

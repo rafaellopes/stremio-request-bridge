@@ -34,7 +34,7 @@ const profiles = [{ id: 4, name: 'HD-1080p' }, { id: 7, name: 'Small' }];
 const rootFolders = [{ path: '/data/movies' }];
 
 export async function startRadarrMock() {
-  const state = { nextId: 1, movies: new Map(), queue: [] }; // movies by imdb id
+  const state = { nextId: 1, movies: new Map(), queue: [], releaseAvailable: false }; // movies by imdb id
   const catalog = { tt1: 'Public Domain Film', tt2: 'Another Film', tt3: 'Third Film' };
   const mock = await startMock((method, path, params, body) => {
     if (path === '/qualityprofile') return profiles;
@@ -47,21 +47,36 @@ export async function startRadarrMock() {
     if (path === '/movie' && method === 'POST') {
       const movie = { ...body, id: state.nextId++ };
       state.movies.set(body.imdbId, movie);
+      if (state.releaseAvailable) state.queue.push({ movieId: movie.id, size: 1000, sizeleft: 1000 });
       return movie;
+    }
+    if (path === '/moviefile' && method === 'GET') {
+      const movie = [...state.movies.values()].find((m) => m.id === Number(params.get('movieId')));
+      return movie?.movieFile ? [movie.movieFile] : [];
+    }
+    const fileById = path.match(/^\/moviefile\/(\d+)$/);
+    if (fileById && method === 'DELETE') {
+      for (const movie of state.movies.values()) if (movie.movieFile?.id === Number(fileById[1])) delete movie.movieFile;
+      return {};
     }
     if (path.startsWith('/movie/') && method === 'PUT') {
       state.movies.set(body.imdbId, body);
       return body;
     }
     if (path === '/queue/details') return state.queue.filter((row) => row.movieId === Number(params.get('movieId')));
-    if (path === '/command') return { id: 1 };
+    if (path === '/command' && method === 'POST') {
+      if (body.name === 'MoviesSearch' && state.releaseAvailable) for (const id of body.movieIds) state.queue.push({ movieId: id, size: 1000, sizeleft: 1000 });
+      return { id: 1 };
+    }
+    if (path === '/command/1') return { id: 1, status: 'completed' };
     return undefined;
   });
   return { ...mock, state };
 }
 
 export async function startSonarrMock() {
-  const state = { nextId: 1, series: new Map(), episodes: [], queue: [] };
+  // packAvailable: a season search grabs a season pack. episodesAvailable: a per-episode search grabs the episodes.
+  const state = { nextId: 1, series: new Map(), episodes: [], queue: [], files: [], packAvailable: false, episodesAvailable: false };
   const catalog = { tt10: 'Some Show' };
   const mock = await startMock((method, path, params, body) => {
     if (path === '/qualityprofile') return profiles;
@@ -85,8 +100,19 @@ export async function startSonarrMock() {
       for (const e of state.episodes) if (body.episodeIds.includes(e.id)) e.monitored = body.monitored;
       return {};
     }
+    if (path === '/episodefile') return state.files;
+    if (path === '/episodefile/bulk' && method === 'DELETE') {
+      state.files = state.files.filter((f) => !body.episodeFileIds.includes(f.id));
+      for (const e of state.episodes) if (body.episodeFileIds.includes(e.episodeFileId)) { e.hasFile = false; delete e.episodeFileId; }
+      return {};
+    }
     if (path === '/queue/details') return state.queue;
-    if (path === '/command') return { id: 1 };
+    if (path === '/command' && method === 'POST') {
+      if (body.name === 'SeasonSearch' && state.packAvailable) state.queue.push({ size: 1000, sizeleft: 1000, episode: { seasonNumber: body.seasonNumber } });
+      if (body.name === 'EpisodeSearch' && state.episodesAvailable) for (const _ of body.episodeIds) state.queue.push({ size: 100, sizeleft: 100, episode: { seasonNumber: 1 } });
+      return { id: 1 };
+    }
+    if (path === '/command/1') return { id: 1, status: 'completed' };
     return undefined;
   });
   return { ...mock, state };
@@ -104,6 +130,8 @@ export async function startHarness({ radarr = true, sonarr = false, env = {} } =
     ...(sonarrMock && { SONARR_URL: sonarrMock.url, SONARR_API_KEY: 's-key' }),
     SERIES_SETTLE_MS: '0',
     SERIES_POLL_MS: '0',
+    FOLLOW_UP: 'false', // tests that exercise the follow-up checks turn it on
+    FOLLOW_UP_MS: '0',
     ...env,
   });
   const bridge = createBridge({
@@ -126,6 +154,7 @@ export async function startHarness({ radarr = true, sonarr = false, env = {} } =
     get,
     streams: async (type, id, token = TOKEN) => (await (await get(`/${token}/stream/${type}/${id}.json`)).json()).streams,
     advance: (ms) => { clock += ms; },
+    settled: () => bridge.settled(),
     close: async () => {
       server.closeAllConnections();
       await new Promise((resolve) => server.close(resolve));

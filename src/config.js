@@ -55,7 +55,7 @@ export function loadConfig(env = process.env) {
   const port = int(env.PORT, 7000);
   const rateLimitPerMinute = int(env.RATE_LIMIT_PER_MINUTE, 20);
   const globalLimitPerHour = int(env.GLOBAL_LIMIT_PER_HOUR, 60);
-  for (const [name, value] of [['PORT', port], ['RATE_LIMIT_PER_MINUTE', rateLimitPerMinute], ['GLOBAL_LIMIT_PER_HOUR', globalLimitPerHour]]) {
+  for (const [name, value] of [['PORT', port], ['RATE_LIMIT_PER_MINUTE', rateLimitPerMinute], ['GLOBAL_LIMIT_PER_HOUR', globalLimitPerHour], ['FOLLOW_UP_MS', int(env.FOLLOW_UP_MS, 90_000)]]) {
     if (Number.isNaN(value)) problems.push(`${name} must be a non-negative integer`);
   }
 
@@ -73,6 +73,10 @@ export function loadConfig(env = process.env) {
     sourceName: env.SOURCE_NAME || 'Request',
     doneHint: env.DONE_HINT || undefined,
     minimumAvailability: env.MIN_AVAILABILITY || 'released',
+    allowDelete: bool(env.ALLOW_DELETE),
+    // After a request, check back later and tell the user when nothing was found (instead of staying on "requested").
+    followUp: env.FOLLOW_UP === undefined || env.FOLLOW_UP === '' ? true : bool(env.FOLLOW_UP),
+    followUpMs: int(env.FOLLOW_UP_MS, 90_000),
     rateLimitPerMinute,
     globalLimitPerHour,
     radarr,

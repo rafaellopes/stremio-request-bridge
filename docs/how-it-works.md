@@ -39,6 +39,7 @@ Each time a title page opens, the bridge asks Radarr/Sonarr and shows exactly on
 | in the library | Radarr: `movieFile` present. Sonarr: the episode has a file | none (your media server addon offers it) |
 | downloading | the title has rows in `/queue/details` | `Downloading NN%` |
 | requested | requested through this addon in the last 10 minutes | `Requested` |
+| nothing found | the follow-up check after a request found nothing queued | `Nothing found yet`, selecting it searches again |
 | new | none of the above | `Download` button |
 
 Nothing is stored: state comes from the apps, apart from a small in-memory list of recent requests.
@@ -53,11 +54,19 @@ These each cost time while building it.
 
 **Sonarr undoes your monitoring if you are early.** The clean way to request one season is to add the series with `monitor: none`, then monitor only that season. But Sonarr loads the episode list first and applies `monitor: none` afterwards, so anything set too early is wiped and the season search finds nothing to look for. The bridge waits for the episodes to appear, and a moment longer, before it sets the monitored flags.
 
+**Sonarr's season search only grabs season packs.** Asking for a season ran `SeasonSearch`, which finished with "0 reports downloaded" for a show that only exists as single episodes, even though every episode was monitored and an interactive search listed all eight as approved. The request looked fine and nothing downloaded. The bridge now checks the queue when the season search ends and, if it is empty, searches the missing episodes one by one. If that also finds nothing, the entry says "nothing found yet" instead of staying on "requested".
+
+**Sonarr's queue rows have no episode unless you ask.** `/queue/details` only embeds the episode with `includeEpisode=true`, so reading the season from `row.episode` silently never matched and series never showed progress.
+
 **A known title is not a new title.** If Radarr already has the movie (unmonitored, no file, nothing queued), adding it again fails. The right move is to monitor it and trigger `MoviesSearch`.
 
 **The default profile can be huge.** With a profile that allows any 1080p, the first request chose a 33 GB release. The bridge uses whichever profile you configure, so give that profile a size limit.
 
 **HTTPS is not optional.** Stremio on TVs and phones refuses plain http addons, so the addon needs a certificate, even when everything else on the network is local.
+
+## Deleting from the stream list
+
+With `ALLOW_DELETE=true`, a title that already has its file gets a "Delete from server" entry. Selecting it only arms the delete (and plays a notice). For the next minute the title shows a "Confirm delete" entry on a different URL, and only that one removes the file (`DELETE /moviefile/{id}` in Radarr, `DELETE /episodefile/bulk` in Sonarr) and stops monitoring so the app does not fetch it again. Two URLs rather than one counted request, because players probe a URL more than once for a single selection.
 
 ## Security model
 

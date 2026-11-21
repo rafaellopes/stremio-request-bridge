@@ -38,6 +38,10 @@ export function createServer({ config, bridge, now = Date.now }) {
   const actionUrl = (kind, imdb, season) => {
     if (kind === 'movie') return `${base}/do/movie/${imdb}`;
     if (kind === 'season') return `${base}/do/season/${imdb}/${season}`;
+    if (kind === 'delete-movie') return `${base}/do/delete/movie/${imdb}`;
+    if (kind === 'delete-season') return `${base}/do/delete/season/${imdb}/${season}`;
+    if (kind === 'confirm-movie') return `${base}/do/confirm-delete/movie/${imdb}`;
+    if (kind === 'confirm-season') return `${base}/do/confirm-delete/season/${imdb}/${season}`;
     return `${base}/notice/wait.mp4`;
   };
 
@@ -120,6 +124,33 @@ export function createServer({ config, bridge, now = Date.now }) {
         return sendNotice(req, res, 'ok');
       } catch (err) {
         console.error(`request ${kind} ${imdb} failed: ${err.message}`);
+        return sendNotice(req, res, 'err');
+      }
+    }
+
+    // Deleting is off unless ALLOW_DELETE is set, and then needs two separate URLs: "delete" only arms, and only the
+    // "confirm" URL (offered for a minute after arming) deletes. Both ignore anything but a real GET.
+    if ((m = /^\/do\/(confirm-)?delete\/(movie|season)\/(tt\d+)(?:\/(\d+))?$/.exec(route))) {
+      if (!config.allowDelete) return notFound(res);
+      const [, confirm, kind, imdb, seasonStr] = m;
+      const season = seasonStr === undefined ? undefined : Number(seasonStr);
+      if (!IMDB.test(imdb) || (kind === 'season' && !(season >= 0 && season < 1000)) || (kind === 'movie' && season !== undefined)) return notFound(res);
+      if (req.method !== 'GET') return sendNotice(req, res, confirm ? 'deleted' : 'confirm');
+      if (!perIp.allow(clientIp(req)) || !global.allow('all')) {
+        console.warn('rate limit hit on delete endpoint');
+        return sendNotice(req, res, 'err');
+      }
+      try {
+        const label = `${kind} ${imdb}${season === undefined ? '' : ` s${season}`}`;
+        if (!confirm) {
+          console.log(`delete ${label}: ${bridge.arm(kind, imdb, season)}`);
+          return sendNotice(req, res, 'confirm');
+        }
+        const outcome = await bridge.remove(kind, imdb, season);
+        console.log(`delete ${label}: ${outcome}`);
+        return sendNotice(req, res, outcome === 'not-armed' ? 'err' : 'deleted');
+      } catch (err) {
+        console.error(`delete ${kind} ${imdb} failed: ${err.message}`);
         return sendNotice(req, res, 'err');
       }
     }

@@ -3,7 +3,7 @@
 [![CI](https://github.com/rafaellopes/stremio-request-bridge/actions/workflows/ci.yml/badge.svg)](https://github.com/rafaellopes/stremio-request-bridge/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-A Stremio addon that adds a **Request** entry to the stream list of any title you do not have yet. Select it and the title is sent to your own Radarr (movies) or Sonarr (seasons). The same entry then shows the download progress, so the whole cycle happens inside Stremio, with no extra app and no web page to open.
+A Stremio addon that adds a **Request** entry to the stream list of any title you do not have yet. Select it and the title is sent to your own Radarr (movies) or Sonarr (seasons). The same entry then shows the download progress, so the whole cycle happens inside Stremio, with no extra app and no web page to open. If nothing is found it says so, and optionally it adds a **Delete** entry for titles you already downloaded.
 
 ![The stream entry going from Request, to Requested, to Downloading, to ready to play](docs/demo.gif)
 
@@ -75,6 +75,8 @@ All settings are environment variables. `.env.example` has the full list with co
 | `RADARR_QUALITY_PROFILE`, `SONARR_QUALITY_PROFILE` | first one the app reports | Id or name of the profile |
 | `LOCALE` | `en` | `en` or `pt` |
 | `SOURCE_NAME` | `Request` | Left column of the stream entry |
+| `ALLOW_DELETE` | `false` | Adds the two-step "Delete from server" entry for downloaded titles |
+| `FOLLOW_UP` | `true` | Check back after a request and report "nothing found yet" |
 | `RATE_LIMIT_PER_MINUTE` | `20` | Requests per client address, `0` disables |
 | `GLOBAL_LIMIT_PER_HOUR` | `60` | Requests across all clients, `0` disables |
 
@@ -89,9 +91,10 @@ The request URL is a plain `GET`, because that is all a player can call. That me
 - Repeating the same request within 10 minutes does nothing (players often retry).
 - Requests are rate limited per client and globally.
 - Ids are validated before anything reaches Radarr/Sonarr.
+- Deleting is off by default (`ALLOW_DELETE`). When on, it takes two different URLs: the first only arms, and only the second one, offered for a minute afterwards, deletes. Probes never delete, and a repeat right after a delete is harmless.
 - The container runs as a non-root user and holds the Radarr/Sonarr keys only in its environment.
 
-The addon needs no access to your media files, only to the Radarr/Sonarr API.
+The addon needs no access to your media files, only to the Radarr/Sonarr API. Without `ALLOW_DELETE` it can only add, monitor and search.
 
 ## Limitations
 
@@ -99,6 +102,8 @@ The addon needs no access to your media files, only to the Radarr/Sonarr API.
 - Developed against Radarr v6 and Sonarr v4 (API v3). Other versions are untested.
 - No web interface and no per-user permissions: whoever has the manifest URL can request.
 - It reports progress from Radarr/Sonarr when the title page opens, it does not push updates.
+- "Nothing found yet" is a check made once, a minute or two after the request. The title stays monitored, so Radarr/Sonarr still grab it later if a release appears.
+- Deleting a season removes all its downloaded episodes and stops monitoring them. It does not remove the series from Sonarr.
 
 ## Related projects
 
@@ -111,7 +116,7 @@ This project only talks to Radarr and Sonarr. What they download is decided by y
 ## Development
 
 ```bash
-npm test          # 30 tests, no dependencies, runs against in-memory Radarr/Sonarr mocks
+npm test          # 45 tests, no dependencies, runs against in-memory Radarr/Sonarr mocks
 npm run notices   # regenerate the notice videos (needs ffmpeg with drawtext)
 ```
 

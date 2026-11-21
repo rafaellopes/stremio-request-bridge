@@ -7,7 +7,9 @@ cd "$(dirname "$0")/.."
 FONT="${FONT:-/System/Library/Fonts/Helvetica.ttc}"
 [ -f "$FONT" ] || FONT="/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
 
+ONLY="${ONLY:-}" # e.g. ONLY="confirm deleted" regenerates just those names
 make() { # locale name line1 line2
+  if [ -n "$ONLY" ]; then case " $ONLY " in *" $2 "*) ;; *) return 0 ;; esac; fi
   mkdir -p "assets/notices/$1"
   ffmpeg -y -loglevel error \
     -f lavfi -i "color=c=0x14161c:s=1280x720:d=4:r=24" \
@@ -21,8 +23,13 @@ make en ok   "Request sent"                "It will download in the background"
 make en wait "Already requested"            "Download in progress"
 make en err  "Could not send the request"   "Check the addon logs or try again later"
 
+make en confirm "Delete from the server?"      "Reopen the title and choose Confirm"
+make en deleted "Deleted from the server"       "The file was removed"
+
 make pt ok   "Pedido enviado"               "Vai descarregar em segundo plano"
 make pt wait "Pedido ja feito"              "Download em curso"
 make pt err  "Nao foi possivel pedir"       "Ve os logs do addon ou tenta mais tarde"
+make pt confirm "Apagar do servidor?"          "Volta ao titulo e escolhe Confirmar"
+make pt deleted "Apagado do servidor"          "O ficheiro foi removido"
 
 ls -la assets/notices/*/

@@ -22,13 +22,15 @@ An action behind a GET is the interesting part, because everything that can call
 
 **Sonarr undoes your work if you are early.** To request a single season I add the series with `monitor: none` and then monitor only that season. Sonarr loads the episode list first and applies `monitor: none` afterwards, which silently wiped my flags, and the season search found nothing to search for. The fix is to wait for the episodes to appear, and a bit longer, before touching anything.
 
+**A season search finds season packs, not seasons.** One day a request for a whole season went through, Sonarr accepted it, and nothing downloaded. The season search had finished with "0 reports downloaded" because the show only exists as single episodes, while a manual search listed all eight as approved. The lesson is to treat "the API accepted it" as the start of the job: the addon now checks the queue afterwards, falls back to searching episode by episode, and tells the user when there is still nothing.
+
 **A permissive quality profile will happily pick a 33 GB release.** My first real request ran with a profile that allowed any 1080p, and Radarr grabbed a 33 GB remux. I cancelled it and capped the size in the profile. The addon uses whatever profile you configure, and the README says to give that profile a size limit.
 
 ## Making it safe to publish
 
 My own version had my domain, my folders and my quality profile in the code, and a GET endpoint with no protection at all. Turning it into something other people can run meant three things.
 
-First, configuration: everything comes from environment variables, with sensible defaults taken from Radarr and Sonarr themselves. Second, security. Every route lives under a secret token in the path, compared in constant time, and a wrong token looks identical to an unknown page. There is a per-client and a global rate limit, strict id validation, and the addon can only add or monitor a title and start a search, nothing else. Third, tests: thirty of them, running the real HTTP server against small fake Radarr and Sonarr APIs. They cover the request flow end to end in under two seconds, and the project has no dependencies.
+First, configuration: everything comes from environment variables, with sensible defaults taken from Radarr and Sonarr themselves. Second, security. Every route lives under a secret token in the path, compared in constant time, and a wrong token looks identical to an unknown page. There is a per-client and a global rate limit, strict id validation, and the addon can only add or monitor a title and start a search, nothing else. Third, tests: forty-five of them, running the real HTTP server against small fake Radarr and Sonarr APIs. They cover the request flow end to end in under two seconds, and the project has no dependencies.
 
 ## The general lesson
 
